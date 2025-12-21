@@ -1,4 +1,5 @@
 import pygame
+import math
 from pygame.locals import (
     K_LEFT,
     K_RIGHT,
@@ -7,6 +8,7 @@ from pygame.locals import (
     RLEACCEL
 )
 from settings import *
+from utils import load_image
 
 # Klasa platformy
 class Platform(pygame.sprite.Sprite):
@@ -14,8 +16,8 @@ class Platform(pygame.sprite.Sprite):
         super().__init__()
         
         try:
-            # Ładowanie i skalowanie tekstury trawy
-            texture = pygame.image.load("content/textures/enviroment/grass.png").convert_alpha()
+            # Ładowanie tekstury trawy (używamy load_image, ale bez skalowania tutaj, bo robimy to niżej dynamicznie)
+            texture = load_image("content/textures/enviroment/grass.png")
             
             # Skalowanie tekstury do większego rozmiaru (np. 60px wysokości) zamiast ściskania do 'height'
             target_height = 60
@@ -29,7 +31,7 @@ class Platform(pygame.sprite.Sprite):
             for i in range(0, width, new_width):
                 self.surf.blit(texture, (i, 0))
                 
-        except (pygame.error, FileNotFoundError):
+        except (AttributeError, pygame.error): # AttributeError jeśli texture jest None
             # Jeśli nie uda się załadować tekstury, użyj koloru
             self.surf = pygame.Surface((width, height))
             self.surf.fill(PLATFORM_COLOR)
@@ -57,27 +59,15 @@ class Player(pygame.sprite.Sprite):
         self.idle_frame_index = 0
 
     def _load_frames(self):
-        # Helper function to load and scale images
-        def load_and_scale(path, size):
-            try:
-                img = pygame.image.load(path).convert_alpha()
-                return pygame.transform.scale(img, size)
-            except (pygame.error, FileNotFoundError):
-                print(f"Nie można załadować obrazka '{path}'.")
-                return None
-
         player_size = (90, 60)
         
         # Load idle frames
         self.idle_frames = []
-        idle1 = load_and_scale("content/textures/player/player_idle1.png", player_size)
-        idle2 = load_and_scale("content/textures/player/player_idle2.png", player_size)
-        idle3 = load_and_scale("content/textures/player/player_idle3.png", player_size)
-        idle4 = load_and_scale("content/textures/player/player_idle4.png", player_size)
+        for i in range(1, 5):
+            frame = load_image(f"content/textures/player/player_idle{i}.png", player_size)
+            if frame: self.idle_frames.append(frame)
 
-        if idle1 and idle2 and idle3 and idle4:
-            self.idle_frames = [idle1, idle2, idle3, idle4]
-        else:
+        if not self.idle_frames:
             # Fallback if idle frames are missing
             fallback = pygame.Surface(player_size)
             fallback.fill(PURPLE)
@@ -85,32 +75,20 @@ class Player(pygame.sprite.Sprite):
 
         # Load jump frame
         # Używamy jednej klatki skoku, aby uniknąć problemów z migotaniem
-        self.jump_frame = load_and_scale("content/textures/player/player_jump.png", player_size)
+        self.jump_frame = load_image("content/textures/player/player_jump.png", player_size)
         if not self.jump_frame:
-            self.jump_frame = load_and_scale("content/textures/player/player_jump.png", player_size)
+            self.jump_frame = load_image("content/textures/player/player_jump.png", player_size)
         if not self.jump_frame:
             self.jump_frame = self.idle_frames[0]
 
 
         # Load walking frames
         self.walk_frames = []
-        walk1 = load_and_scale("content/textures/player/player_walk1.png", player_size)
-        walk2 = load_and_scale("content/textures/player/player_walk2.png", player_size)
-        walk3 = load_and_scale("content/textures/player/player_walk3.png", player_size)
-        walk4 = load_and_scale("content/textures/player/player_walk4.png", player_size)
-        walk5 = load_and_scale("content/textures/player/player_walk5.png", player_size)
-        walk6 = load_and_scale("content/textures/player/player_walk6.png", player_size)
-        walk7 = load_and_scale("content/textures/player/player_walk7.png", player_size)
-        walk8 = load_and_scale("content/textures/player/player_walk8.png", player_size)
-        walk9 = load_and_scale("content/textures/player/player_walk9.png", player_size)
+        for i in range(1, 10):
+            frame = load_image(f"content/textures/player/player_walk{i}.png", player_size)
+            if frame: self.walk_frames.append(frame)
 
-
-
-
-
-        if walk1 and walk2 and walk3 and walk4 and walk5 and walk6 and walk7 and walk8 and walk9:
-            self.walk_frames = [walk1, walk2, walk3, walk4, walk5, walk6, walk7, walk8, walk9]
-        else:
+        if not self.walk_frames:
             # Use idle if walk frames are missing
             self.walk_frames = [self.idle_frames[0]]
 
@@ -186,21 +164,56 @@ class Player(pygame.sprite.Sprite):
 class Goal(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.surf = pygame.Surface((50, 50))
-        self.surf.fill(GOLD)
-        self.rect = self.surf.get_rect(topleft=(x, y))
+        self.frames = []
+        # Ładowanie klatek animacji bazy
+        for i in range(1, 3):
+            img = load_image(f"content/textures/enviroment/base{i}.png", (160, 100))
+            if img:
+                self.frames.append(img)
+        
+        # Fallback jeśli nie znaleziono klatek animacji
+        if not self.frames:
+            img = load_image("content/textures/enviroment/base.png", (160, 160))
+            if img:
+                self.frames.append(img)
+            else:
+                surf = pygame.Surface((50, 50))
+                surf.fill(GOLD)
+                self.frames.append(surf)
+        
+        self.current_frame = 0
+        self.surf = self.frames[0]
+        self.last_update = pygame.time.get_ticks()
+
+        # Dopasowanie do ziemi
+        if self.surf.get_height() <= 160:
+            self.rect = self.surf.get_rect(bottomleft=(x, y + 50 + 30))
+        else:
+            self.rect = self.surf.get_rect(topleft=(x, y))
+
+    def update(self):
+        now = pygame.time.get_ticks()
+        if now - self.last_update > GOAL_ANIMATION_SPEED:
+            self.last_update = now
+            self.current_frame = (self.current_frame + 1) % len(self.frames)
+            self.surf = self.frames[self.current_frame]
 
 # Klasa smaczka (punkty)
 class Treat(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        try:
-            self.surf = pygame.image.load("content/textures/treat.png").convert_alpha()
-            self.surf = pygame.transform.scale(self.surf, (30, 30))
-        except (pygame.error, FileNotFoundError):
+        self.surf = load_image("content/textures/enviroment/treat.png", (60, 30))
+        if not self.surf:
             self.surf = pygame.Surface((20, 20))
             self.surf.fill((255, 165, 0)) # Pomarańczowy
         self.rect = self.surf.get_rect(center=(x, y))
+        self.start_y = y
+        self.timer = 0
+
+    def update(self):
+        self.timer += 0.1
+        offset = math.sin(self.timer) * 5 # Amplituda 5 pikseli
+        self.rect.centery = self.start_y + offset
 
 # Klasa przeciwnika
 class Enemy(pygame.sprite.Sprite):
@@ -221,14 +234,9 @@ class Enemy(pygame.sprite.Sprite):
     def _load_frames(self):
         self.frames = []
         for i in range(1, 5):
-            try:
-                path = f"content/textures/enemy/enemy{i}.png"
-                img = pygame.image.load(path).convert_alpha()
-                img = pygame.transform.scale(img, (60, 60))
-                self.frames.append(img)
-            except (pygame.error, FileNotFoundError):
-                print(f"Nie można załadować obrazka '{path}'.")
-                break # Przerwij, jeśli brakuje którejś klatki
+            path = f"content/textures/enemy/enemy{i}.png"
+            img = load_image(path, (60, 60))
+            if img: self.frames.append(img)
         
         if not self.frames:
             # Fallback, jeśli nie załadowano żadnej klatki
