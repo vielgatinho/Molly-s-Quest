@@ -98,6 +98,25 @@ def game_loop(jump_sound, stomp_sound, level_data, start_score, lives):
     except (pygame.error, FileNotFoundError):
         heart_img = None
 
+    try:
+        score_label_img = pygame.image.load("content/ui/score.png").convert_alpha()
+        # Skalowanie do wysokości 30px (dopasowanie do czcionki)
+        target_h = 30
+        scale = target_h / score_label_img.get_height()
+        new_w = int(score_label_img.get_width() * scale)
+        score_label_img = pygame.transform.scale(score_label_img, (new_w, target_h))
+    except (pygame.error, FileNotFoundError):
+        score_label_img = None
+
+    try:
+        time_label_img = pygame.image.load("content/ui/time.png").convert_alpha()
+        target_h = 30
+        scale = target_h / time_label_img.get_height()
+        new_w = int(time_label_img.get_width() * scale)
+        time_label_img = pygame.transform.scale(time_label_img, (new_w, target_h))
+    except (pygame.error, FileNotFoundError):
+        time_label_img = None
+
     camera_x = 0
     score = start_score
     font = pygame.font.SysFont(None, 36)
@@ -165,11 +184,21 @@ def game_loop(jump_sound, stomp_sound, level_data, start_score, lives):
             shifted_rect.x -= camera_x
             screen.blit(entity.surf, shifted_rect)
             
-        score_text = font.render(f'Wynik: {score}', True, BLACK)
-        screen.blit(score_text, (10, 10))
+        if score_label_img:
+            screen.blit(score_label_img, (10, 10))
+            score_val = font.render(str(score), True, BLACK)
+            screen.blit(score_val, (10 + score_label_img.get_width() + 10, 10))
+        else:
+            score_text = font.render(f'Wynik: {score}', True, BLACK)
+            screen.blit(score_text, (10, 10))
         
-        timer_text = font.render(f'Czas: {int(remaining_time)}', True, BLACK)
-        screen.blit(timer_text, (SCREEN_WIDTH - 150, 10))
+        if time_label_img:
+            screen.blit(time_label_img, (SCREEN_WIDTH - 180, 10))
+            timer_val = font.render(str(int(remaining_time)), True, BLACK)
+            screen.blit(timer_val, (SCREEN_WIDTH - 180 + time_label_img.get_width() + 10, 10))
+        else:
+            timer_text = font.render(f'Czas: {int(remaining_time)}', True, BLACK)
+            screen.blit(timer_text, (SCREEN_WIDTH - 150, 10))
 
         if heart_img:
             for i in range(lives):

@@ -100,11 +100,16 @@ class Player(pygame.sprite.Sprite):
         walk4 = load_and_scale("content/textures/player/player_walk4.png", player_size)
         walk5 = load_and_scale("content/textures/player/player_walk5.png", player_size)
         walk6 = load_and_scale("content/textures/player/player_walk6.png", player_size)
+        walk7 = load_and_scale("content/textures/player/player_walk7.png", player_size)
+        walk8 = load_and_scale("content/textures/player/player_walk8.png", player_size)
+        walk9 = load_and_scale("content/textures/player/player_walk9.png", player_size)
 
 
 
-        if walk1 and walk2 and walk3 and walk4 and walk5 and walk6:
-            self.walk_frames = [walk1, walk2, walk3, walk4, walk5, walk6]
+
+
+        if walk1 and walk2 and walk3 and walk4 and walk5 and walk6 and walk7 and walk8 and walk9:
+            self.walk_frames = [walk1, walk2, walk3, walk4, walk5, walk6, walk7, walk8, walk9]
         else:
             # Use idle if walk frames are missing
             self.walk_frames = [self.idle_frames[0]]
@@ -201,19 +206,48 @@ class Treat(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        try:
-            # Spróbuj załadować obrazek przeciwnika
-            self.surf = pygame.image.load("content/textures/enemy.png").convert_alpha()
-        except (pygame.error, FileNotFoundError):
-            # Jeśli obrazek się nie załaduje, użyj czerwonego kwadratu
-            print("Nie można załadować obrazka 'enemy.png', używam domyślnego kwadratu.")
-            self.surf = pygame.Surface((30, 30))
-            self.surf.fill(RED)
-        self.rect = self.surf.get_rect(topleft=(x, y))
+        self._load_frames()
+        self.surf = self.frames[0]
+        self.rect = self.surf.get_rect(topleft=(x, y + 20))
         self.x = float(self.rect.x)
         self.speed = ENEMY_SPEED
         self.direction = 1 # 1 for right, -1 for left
         self.start_x = x
+
+        # Animation
+        self.last_anim_update = pygame.time.get_ticks()
+        self.anim_frame_index = 0
+
+    def _load_frames(self):
+        self.frames = []
+        for i in range(1, 5):
+            try:
+                path = f"content/textures/enemy/enemy{i}.png"
+                img = pygame.image.load(path).convert_alpha()
+                img = pygame.transform.scale(img, (60, 60))
+                self.frames.append(img)
+            except (pygame.error, FileNotFoundError):
+                print(f"Nie można załadować obrazka '{path}'.")
+                break # Przerwij, jeśli brakuje którejś klatki
+        
+        if not self.frames:
+            # Fallback, jeśli nie załadowano żadnej klatki
+            fallback = pygame.Surface((60, 60))
+            fallback.fill(RED)
+            self.frames = [fallback]
+
+    def _animate(self):
+        now = pygame.time.get_ticks()
+        if now - self.last_anim_update > ENEMY_ANIMATION_SPEED:
+            self.last_anim_update = now
+            self.anim_frame_index = (self.anim_frame_index + 1) % len(self.frames)
+        
+        original_frame = self.frames[self.anim_frame_index]
+        
+        if self.direction == -1:
+            self.surf = pygame.transform.flip(original_frame, True, False)
+        else:
+            self.surf = original_frame
 
     def update(self):
         self.x += self.speed * self.direction
@@ -221,3 +255,5 @@ class Enemy(pygame.sprite.Sprite):
         # Prosta AI: zawróć na krawędzi
         if self.rect.x > self.start_x + 100 or self.rect.x < self.start_x:
             self.direction *= -1
+        
+        self._animate()

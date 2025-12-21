@@ -55,8 +55,8 @@ LEVEL_1 = {
         (1600, SCREEN_HEIGHT - 390, 100, 20),
     ],
     'enemies': [
-        (400, SCREEN_HEIGHT - 290 - 30),
-        (850, SCREEN_HEIGHT - 190 - 30),
+        (400, SCREEN_HEIGHT - 290 - 60),
+        (850, SCREEN_HEIGHT - 190 - 60),
     ],
     'treats': [
         (200, SCREEN_HEIGHT - 160 - 40),
@@ -79,9 +79,9 @@ LEVEL_2 = {
         (2100, SCREEN_HEIGHT - 240, 200, 20),
     ],
     'enemies': [
-        (550, SCREEN_HEIGHT - 340 - 30),
-        (1350, SCREEN_HEIGHT - 290 - 30),
-        (2150, SCREEN_HEIGHT - 240 - 30),
+        (550, SCREEN_HEIGHT - 340 - 60),
+        (1350, SCREEN_HEIGHT - 290 - 60),
+        (2150, SCREEN_HEIGHT - 240 - 60),
     ],
     'treats': [
         (300, SCREEN_HEIGHT - 190 - 40),
