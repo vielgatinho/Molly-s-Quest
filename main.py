@@ -44,12 +44,20 @@ def main():
 
     current_level_index = 0
     total_score = 0
+    lives = 3
 
     while current_level_index < len(LEVEL_LIST):
+        if not pygame.mixer.music.get_busy():
+            try:
+                pygame.mixer.music.play(-1)
+            except pygame.error:
+                pass
+
         level_data = LEVEL_LIST[current_level_index]
-        result, score = game_loop(jump_sound, stomp_sound, level_data, total_score)
+        result, score = game_loop(jump_sound, stomp_sound, level_data, total_score, lives)
         
         if result == 'win':
+            score += lives * 300 # Bonus za zachowane życia
             total_score = score
             current_level_index += 1
             if current_level_index < len(LEVEL_LIST):
@@ -58,25 +66,37 @@ def main():
                 show_end_screen(screen, "Wygrałeś całą grę!", total_score)
                 current_level_index = 0
                 total_score = 0
+                lives = 3
                 show_start_screen(screen)
-        elif result == 'lose':
-            show_end_screen(screen, "Koniec gry!", score)
-            current_level_index = 0
-            total_score = 0
+        elif result == 'died':
+            lives -= 1
+            if lives == 0:
+                show_end_screen(screen, "Koniec gry!", score)
+                current_level_index = 0
+                total_score = 0
+                lives = 3
+                show_start_screen(screen)
+            # Jeśli życia > 0, pętla wykona się ponownie dla tego samego poziomu (restart)
         elif result == 'quit':
             break
 
-def game_loop(jump_sound, stomp_sound, level_data, start_score):
+def game_loop(jump_sound, stomp_sound, level_data, start_score, lives):
     player = Player()
     level = Level(level_data)
     level.all_sprites.add(player)
     
     try:
-        background_image = pygame.image.load("content/textures/background.png").convert()
+        background_image = pygame.image.load("content/textures/enviroment/background.png").convert()
         background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
     except (pygame.error, FileNotFoundError):
         print("Nie można załadować tła 'background.png'.")
         background_image = None
+
+    try:
+        heart_img = pygame.image.load("content/ui/heart.png").convert_alpha()
+        heart_img = pygame.transform.scale(heart_img, (30, 30))
+    except (pygame.error, FileNotFoundError):
+        heart_img = None
 
     camera_x = 0
     score = start_score
@@ -101,15 +121,13 @@ def game_loop(jump_sound, stomp_sound, level_data, start_score):
         
         if remaining_time <= 0:
             pygame.mixer.music.stop()
-            return 'lose', score
+            return 'died', score
 
         pressed_keys = pygame.key.get_pressed()
         
         player.update(pressed_keys, level.platforms, level.world_width)
         level.enemies.update()
         
-        score += 1
-
         collided_enemy = pygame.sprite.spritecollideany(player, level.enemies)
         if collided_enemy:
             if player.velocity_y > 0 and player.rect.bottom < collided_enemy.rect.centery:
@@ -117,11 +135,16 @@ def game_loop(jump_sound, stomp_sound, level_data, start_score):
                     stomp_sound.play()
                 collided_enemy.kill()
                 player.velocity_y = -10
-                score += 100
+                score += 150
             else:
                 pygame.mixer.music.stop()
-                return 'lose', score
+                return 'died', score
         
+        # Zbieranie smaczków
+        collided_treats = pygame.sprite.spritecollide(player, level.treats, True)
+        for treat in collided_treats:
+            score += 50
+
         if pygame.sprite.spritecollideany(player, level.goals):
             pygame.mixer.music.stop()
             return 'win', score
@@ -147,6 +170,10 @@ def game_loop(jump_sound, stomp_sound, level_data, start_score):
         
         timer_text = font.render(f'Czas: {int(remaining_time)}', True, BLACK)
         screen.blit(timer_text, (SCREEN_WIDTH - 150, 10))
+
+        if heart_img:
+            for i in range(lives):
+                screen.blit(heart_img, (10 + i * 35, 50))
 
         pygame.display.flip()
         clock.tick(60)

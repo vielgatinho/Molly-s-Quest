@@ -19,3 +19,5 @@ JUMP_STRENGTH = 15
 WORLD_WIDTH = 2000 # Szerokość świata gry
 PLAYER_SPEED = 5
 ENEMY_SPEED = 2.5
+WALK_ANIMATION_SPEED = 150 # Czas między klatkami animacji chodzenia w ms
+IDLE_ANIMATION_TIMINGS = (5000, 500, 500, 500) # Czas wyświetlania każdej klatki idle (ms)

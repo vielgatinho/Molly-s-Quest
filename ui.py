@@ -5,17 +5,25 @@ from settings import *
 def show_start_screen(screen):
     font = pygame.font.SysFont(None, 55)
     
-    background = pygame.Surface(screen.get_size()).convert()
-    background.fill(BLACK)
-    
-    title_text = font.render(CAPTION, True, WHITE)
-    title_rect = title_text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 50))
+    try:
+        background = pygame.image.load("content/textures/enviroment/background.png").convert()
+        background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+    except (pygame.error, FileNotFoundError):
+        background = pygame.Surface(screen.get_size())
+        background.fill(SKY_BLUE)
+
+    try:
+        title_surf = pygame.image.load("content/ui/title.png").convert_alpha()
+        title_rect = title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 50))
+    except (pygame.error, FileNotFoundError):
+        title_surf = font.render(CAPTION, True, WHITE)
+        title_rect = title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 50))
 
     start_text = font.render("Naciśnij dowolny klawisz, aby rozpocząć", True, WHITE)
-    start_rect = start_text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 50))
+    start_rect = start_text.get_rect(center=(SCREEN_WIDTH / 2, title_rect.bottom + 50))
 
     screen.blit(background, (0,0))
-    screen.blit(title_text, title_rect)
+    screen.blit(title_surf, title_rect)
     screen.blit(start_text, start_rect)
     pygame.display.flip()
 
