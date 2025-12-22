@@ -1,11 +1,11 @@
 import pygame
 import sys
 from settings import *
-from sprites import Player
+from sprites import Player, Particle, FloatingText
 from levels import Level, LEVEL_LIST
-from ui import show_start_screen, show_end_screen
-from utils import load_image, load_font, load_sound
-from pygame.locals import K_SPACE, KEYDOWN, QUIT
+from ui import show_start_screen, show_end_screen, show_pause_menu, show_main_menu, show_leaderboard, show_settings_menu
+from utils import load_image, load_font, load_sound, save_score_to_leaderboard, load_leaderboard, save_game_state, load_game_state
+from pygame.locals import K_SPACE, KEYDOWN, QUIT, K_ESCAPE
 
 class Game:
     def __init__(self):
@@ -13,6 +13,9 @@ class Game:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption(CAPTION)
         self.clock = pygame.time.Clock()
+        
+        self.music_volume = 0.5
+        self.sfx_volume = 0.5
         
         self.load_assets()
         
@@ -25,12 +28,15 @@ class Game:
         # Muzyka
         try:
             pygame.mixer.music.load('content/audio/background_music.mp3')
+            pygame.mixer.music.set_volume(self.music_volume)
         except pygame.error:
             print("Nie można załadować pliku 'background_music.mp3'. Gra będzie bez muzyki.")
 
         # Dźwięki
         self.jump_sound = load_sound('content/audio/jump.mp3')
+        if self.jump_sound: self.jump_sound.set_volume(self.sfx_volume)
         self.stomp_sound = load_sound('content/audio/stomp.mp3')
+        if self.stomp_sound: self.stomp_sound.set_volume(self.sfx_volume)
 
         # Grafiki UI (ładowane raz)
         self.background_image = load_image("content/textures/enviroment/background2.png", (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -64,37 +70,74 @@ class Game:
         self.lives = 3
 
     def run(self):
-        show_start_screen(self.screen)
-        self.play_music()
-
-        while self.current_level_index < len(LEVEL_LIST):
-            if not pygame.mixer.music.get_busy():
+        while True: # Główna pętla aplikacji
+            show_start_screen(self.screen)
+            
+            # Menu główne
+            action = show_main_menu(self.screen)
+            
+            if action == 'quit':
+                break
+            elif action == 'leaderboard':
+                data = load_leaderboard()
+                show_leaderboard(self.screen, data)
+                continue # Wróć do początku pętli (ekran startowy/menu)
+            elif action == 'settings':
+                self.music_volume, self.sfx_volume = show_settings_menu(self.screen, self.music_volume, self.sfx_volume)
+                
+                # Zastosuj zmiany
+                pygame.mixer.music.set_volume(self.music_volume)
+                if self.jump_sound: self.jump_sound.set_volume(self.sfx_volume)
+                if self.stomp_sound: self.stomp_sound.set_volume(self.sfx_volume)
+                
+                continue
+            elif action == 'load_game':
+                state = load_game_state()
+                if state:
+                    self.current_level_index = state.get('level', 0)
+                    self.total_score = state.get('score', 0)
+                    self.lives = state.get('lives', 3)
+                    self.play_music()
+                else:
+                    continue
+            elif action == 'new_game':
+                self.reset_game()
                 self.play_music()
 
-            level_data = LEVEL_LIST[self.current_level_index]
-            result, score = self.run_level(level_data)
-            
-            if result == 'win':
-                score += self.lives * 300 # Bonus za zachowane życia
-                self.total_score = score
-                self.current_level_index += 1
-                if self.current_level_index < len(LEVEL_LIST):
-                    show_end_screen(self.screen, f"Poziom {self.current_level_index} ukończony!", self.total_score)
-                else:
-                    show_end_screen(self.screen, "Wygrałeś całą grę!", self.total_score)
-                    self.reset_game()
-                    show_start_screen(self.screen)
+            # Pętla gry (poziomy)
+            while self.current_level_index < len(LEVEL_LIST):
+                if not pygame.mixer.music.get_busy():
                     self.play_music()
-            elif result == 'died':
-                self.lives -= 1
-                if self.lives == 0:
-                    show_end_screen(self.screen, "Koniec gry!", score)
-                    self.reset_game()
-                    show_start_screen(self.screen)
-                    self.play_music()
-                # Jeśli życia > 0, pętla while kontynuuje z tym samym current_level_index
-            elif result == 'quit':
-                break
+
+                level_data = LEVEL_LIST[self.current_level_index]
+                result, score = self.run_level(level_data)
+                
+                if result == 'win':
+                    score += self.lives * 300 # Bonus za zachowane życia
+                    self.total_score = score
+                    self.current_level_index += 1
+                    if self.current_level_index < len(LEVEL_LIST):
+                        # Automatyczny zapis po ukończeniu poziomu
+                        save_game_state({
+                            'level': self.current_level_index,
+                            'score': self.total_score,
+                            'lives': self.lives
+                        })
+                        # Tutaj można dodać ekran przejściowy, na razie używamy end_screen tylko na koniec gry
+                        pass 
+                    else:
+                        player_name = show_end_screen(self.screen, "Wygrałeś całą grę!", self.total_score)
+                        save_score_to_leaderboard(player_name, self.total_score)
+                        break # Wróć do menu głównego
+                elif result == 'died':
+                    self.lives -= 1
+                    if self.lives == 0:
+                        player_name = show_end_screen(self.screen, "Koniec gry!", score)
+                        save_score_to_leaderboard(player_name, score)
+                        break # Wróć do menu głównego
+                elif result == 'quit':
+                    pygame.quit()
+                    sys.exit()
         
         pygame.quit()
         sys.exit()
@@ -120,6 +163,26 @@ class Game:
                 if event.type == KEYDOWN:
                     if event.key == K_SPACE:
                         player.jump(self.jump_sound)
+                    elif event.key == K_ESCAPE:
+                        # Obsługa pauzy
+                        pygame.mixer.music.pause()
+                        pause_start = pygame.time.get_ticks()
+                        
+                        action = show_pause_menu(self.screen)
+                        
+                        pause_end = pygame.time.get_ticks()
+                        # Korekta czasu gry o czas trwania pauzy, aby licznik czasu nie uciekł
+                        start_ticks += (pause_end - pause_start) 
+                        pygame.mixer.music.unpause()
+                        
+                        if action == 'quit':
+                            return 'quit', score
+                        elif action == 'save':
+                            save_game_state({
+                                'level': self.current_level_index,
+                                'score': self.total_score,
+                                'lives': self.lives
+                            })
 
             seconds = (pygame.time.get_ticks() - start_ticks) / 1000
             remaining_time = time_limit - seconds
@@ -134,6 +197,8 @@ class Game:
             level.enemies.update()
             level.goals.update()
             level.treats.update()
+            level.particles.update()
+            level.floating_texts.update()
             
             # Kolizje z przeciwnikami
             collided_enemy = pygame.sprite.spritecollideany(player, level.enemies)
@@ -144,6 +209,15 @@ class Game:
                     collided_enemy.kill()
                     player.velocity_y = -10
                     score += 150
+                    # Cząsteczki przy pokonaniu przeciwnika (czerwone)
+                    for _ in range(15):
+                        p = Particle(collided_enemy.rect.centerx, collided_enemy.rect.centery, RED)
+                        level.particles.add(p)
+                        level.all_sprites.add(p)
+                    # Tekst z punktami
+                    text = FloatingText(collided_enemy.rect.centerx, collided_enemy.rect.top, "+150", GOLD)
+                    level.floating_texts.add(text)
+                    level.all_sprites.add(text)
                 else:
                     pygame.mixer.music.stop()
                     return 'died', score
@@ -152,6 +226,15 @@ class Game:
             collided_treats = pygame.sprite.spritecollide(player, level.treats, True)
             for treat in collided_treats:
                 score += 50
+                # Cząsteczki przy zebraniu smaczka (złote)
+                for _ in range(10):
+                    p = Particle(treat.rect.centerx, treat.rect.centery, GOLD)
+                    level.particles.add(p)
+                    level.all_sprites.add(p)
+                # Tekst z punktami
+                text = FloatingText(treat.rect.centerx, treat.rect.top, "+50", GOLD)
+                level.floating_texts.add(text)
+                level.all_sprites.add(text)
 
             # Cel
             if pygame.sprite.spritecollideany(player, level.goals):
@@ -206,6 +289,14 @@ class Game:
             self.screen.blit(timer_shadow, (SCREEN_WIDTH - 148, 12))
             timer_text = self.font.render(f'Czas: {int(remaining_time)}', True, GOLD)
             self.screen.blit(timer_text, (SCREEN_WIDTH - 150, 10))
+
+        # Poziom (na środku)
+        level_str = f"Poziom {self.current_level_index + 1}"
+        level_shadow = self.font.render(level_str, True, BLACK)
+        level_text = self.font.render(level_str, True, GOLD)
+        level_rect = level_text.get_rect(midtop=(SCREEN_WIDTH // 2, 10))
+        self.screen.blit(level_shadow, (level_rect.x + 2, level_rect.y + 2))
+        self.screen.blit(level_text, level_rect)
 
         # Życia
         if self.heart_img:

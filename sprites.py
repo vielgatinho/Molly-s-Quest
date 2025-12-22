@@ -1,14 +1,17 @@
 import pygame
 import math
+import random
 from pygame.locals import (
     K_LEFT,
     K_RIGHT,
     K_a,
     K_d,
+    K_s,
+    K_DOWN,
     RLEACCEL
 )
 from settings import *
-from utils import load_image
+from utils import load_image, load_font
 
 # Klasa platform
 class Platform(pygame.sprite.Sprite):
@@ -118,6 +121,11 @@ class Player(pygame.sprite.Sprite):
         # Kolizje z platformami (pionowe)
         collided_platforms = pygame.sprite.spritecollide(self, platforms, False)
         for plat in collided_platforms:
+            # Pozwól zeskoczyć z platformy (S lub strzałka w dół), jeśli to nie podłoga
+            # Podłoga znajduje się na wysokości SCREEN_HEIGHT - 60
+            if (pressed_keys[K_s] or pressed_keys[K_DOWN]) and plat.rect.top < SCREEN_HEIGHT - 60:
+                continue
+
             if self.velocity_y > 0: # Spadanie
                 if self.rect.bottom < plat.rect.centery:
                     self.rect.bottom = plat.rect.top + 20
@@ -265,3 +273,55 @@ class Enemy(pygame.sprite.Sprite):
             self.direction *= -1
         
         self._animate()
+
+class Particle(pygame.sprite.Sprite):
+    def __init__(self, x, y, color):
+        super().__init__()
+        self.surf = pygame.Surface((6, 6))
+        self.surf.fill(color)
+        self.rect = self.surf.get_rect(center=(x, y))
+        self.x = float(x)
+        self.y = float(y)
+        # Losowa prędkość w różnych kierunkach
+        self.vx = random.uniform(-4, 4)
+        self.vy = random.uniform(-4, 4)
+        self.lifetime = random.randint(20, 40)
+        self.color = color
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.vy += 0.2 # Grawitacja dla cząsteczek
+        self.rect.center = (int(self.x), int(self.y))
+        self.lifetime -= 1
+        
+        if self.lifetime <= 0:
+            self.kill()
+        elif self.lifetime < 10:
+            # Efekt zanikania (zmniejszanie) pod koniec życia
+            size = int(6 * (self.lifetime / 10))
+            if size > 0:
+                self.surf = pygame.Surface((size, size))
+                self.surf.fill(self.color)
+
+class FloatingText(pygame.sprite.Sprite):
+    def __init__(self, x, y, text, color=WHITE):
+        super().__init__()
+        self.font = load_font('content/ui/pixel_font.otf', 24)
+        self.surf = self.font.render(text, True, color)
+        self.rect = self.surf.get_rect(center=(x, y))
+        self.y = float(y)
+        self.vy = -1.5 # Prędkość wznoszenia
+        self.lifetime = 60 # Czas życia (klatki)
+
+    def update(self):
+        self.y += self.vy
+        self.rect.centery = int(self.y)
+        self.lifetime -= 1
+        
+        if self.lifetime <= 0:
+            self.kill()
+        elif self.lifetime < 20:
+            # Efekt zanikania (alpha)
+            alpha = int(255 * (self.lifetime / 20))
+            self.surf.set_alpha(alpha)
