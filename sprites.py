@@ -10,7 +10,7 @@ from pygame.locals import (
 from settings import *
 from utils import load_image
 
-# Klasa platformy
+# Klasa platform
 class Platform(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
