@@ -1,4 +1,5 @@
 import pygame
+import random
 from settings import *
 from sprites import Platform, Enemy, Goal, Treat
 
@@ -40,56 +41,44 @@ class Level:
             self.treats.add(treat)
             self.all_sprites.add(treat)
 
-# Definicje poziomów
-LEVEL_1 = {
-    'world_width': 2000,
-    'time_limit': 90,
-    'platforms': [
-        (0, SCREEN_HEIGHT - 60, 2000, 60),
-        (100, SCREEN_HEIGHT - 160, 200, 20),
-        (350, SCREEN_HEIGHT - 290, 150, 20),
-        (550, SCREEN_HEIGHT - 440, 100, 20),
-        (800, SCREEN_HEIGHT - 190, 200, 20),
-        (1100, SCREEN_HEIGHT - 340, 150, 20),
-        (1400, SCREEN_HEIGHT - 240, 100, 20),
-        (1600, SCREEN_HEIGHT - 390, 100, 20),
-    ],
-    'enemies': [
-        (400, SCREEN_HEIGHT - 290 - 60),
-        (850, SCREEN_HEIGHT - 190 - 60),
-    ],
-    'treats': [
-        (200, SCREEN_HEIGHT - 160 - 40),
-        (600, SCREEN_HEIGHT - 440 - 40),
-        (1200, SCREEN_HEIGHT - 340 - 40),
-    ],
-    'goal': (2000 - 100, SCREEN_HEIGHT - 60 - 50)
-}
+def generate_random_level(difficulty):
+    """Generuje losowy poziom na podstawie trudności (numeru poziomu)."""
+    # Zwiększamy świat i czas wraz z trudnością
+    world_width = 2000 + (difficulty * 500)
+    
+    level_data = {
+        'world_width': world_width,
+        'time_limit': 90 + (difficulty * 15),
+        'platforms': [],
+        'enemies': [],
+        'treats': [],
+        'goal': (world_width - 150, SCREEN_HEIGHT - 110) # Cel zawsze na końcu
+    }
+    
+    # Podłoga na całej długości poziomu
+    level_data['platforms'].append((0, SCREEN_HEIGHT - 60, world_width, 60))
+    
+    # Generowanie losowych platform
+    current_x = 200
+    while current_x < world_width - 200:
+        width = random.randint(100, 300)
+        height = 20
+        y = random.randint(SCREEN_HEIGHT - 450, SCREEN_HEIGHT - 150)
+        
+        level_data['platforms'].append((current_x, y, width, height))
+        
+        # Szansa na przeciwnika na platformie (jeśli jest wystarczająco szeroka)
+        if width > 150 and random.random() < (0.5 * difficulty):
+            level_data['enemies'].append((current_x + random.randint(20, width - 60), y - 60))
+            
+        # Szansa na smaczek nad platformą
+        if random.random() < (0.6 * difficulty):
+            level_data['treats'].append((current_x + width // 2, y - 50))
+            
+        # Przesuwamy się w prawo o szerokość platformy + losowy odstęp
+        current_x += width + random.randint(100, 300)
 
-LEVEL_2 = {
-    'world_width': 2500,
-    'time_limit': 120,
-    'platforms': [
-        (0, SCREEN_HEIGHT - 60, 2500, 60), # Dłuższa podłoga
-        (200, SCREEN_HEIGHT - 190, 200, 20),
-        (500, SCREEN_HEIGHT - 340, 200, 20),
-        (900, SCREEN_HEIGHT - 440, 150, 20),
-        (1300, SCREEN_HEIGHT - 290, 200, 20),
-        (1700, SCREEN_HEIGHT - 390, 150, 20),
-        (2100, SCREEN_HEIGHT - 240, 200, 20),
-    ],
-    'enemies': [
-        (550, SCREEN_HEIGHT - 340 - 60),
-        (1350, SCREEN_HEIGHT - 290 - 60),
-        (2150, SCREEN_HEIGHT - 240 - 60),
-    ],
-    'treats': [
-        (300, SCREEN_HEIGHT - 190 - 40),
-        (1000, SCREEN_HEIGHT - 440 - 40),
-        (1400, SCREEN_HEIGHT - 290 - 40),
-        (1800, SCREEN_HEIGHT - 390 - 40),
-    ],
-    'goal': (2500 - 100, SCREEN_HEIGHT - 60 - 50)
-}
+    return level_data
 
-LEVEL_LIST = [LEVEL_1, LEVEL_2]
+# Tworzymy listę 5 poziomów o rosnącej trudności (indeksy 0-4)
+LEVEL_LIST = [generate_random_level(i) for i in range(5)]
