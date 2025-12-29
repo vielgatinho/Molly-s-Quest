@@ -31,8 +31,8 @@ def show_start_screen(screen):
             new_height = int(start_surf.get_height() * ratio)
             start_surf = pygame.transform.scale(start_surf, (SCREEN_WIDTH - 60, new_height))
     else:
-        start_main = font.render("Naciśnij dowolny klawisz, aby rozpocząć", True, GOLD)
-        start_shadow = font.render("Naciśnij dowolny klawisz, aby rozpocząć", True, BLACK)
+        start_main = font.render("Nacisnij dowolny klawisz, aby rozpoczac", True, GOLD)
+        start_shadow = font.render("Naciśnij dowolny klawisz, aby rozpoczac", True, BLACK)
         start_surf = pygame.Surface((start_main.get_width() + 2, start_main.get_height() + 2), pygame.SRCALPHA)
         start_surf.blit(start_shadow, (2, 2))
         start_surf.blit(start_main, (0, 0))
@@ -84,14 +84,14 @@ def show_end_screen(screen, message, score):
     text = font.render(message, True, GOLD)
     text_rect = text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 50))
     
-    score_shadow = score_font.render(f"Twój ostateczny wynik: {score}", True, BLACK)
+    score_shadow = score_font.render(f"Twoj ostateczny wynik: {score}", True, BLACK)
     score_rect_shadow = score_shadow.get_rect(center=(SCREEN_WIDTH / 2 + 2, SCREEN_HEIGHT / 2 + 2))
-    score_text = score_font.render(f"Twój ostateczny wynik: {score}", True, GOLD)
+    score_text = score_font.render(f"Twoj ostateczny wynik: {score}", True, GOLD)
     score_rect = score_text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
 
-    input_info_shadow = score_font.render("Wpisz swój nick i naciśnij ENTER:", True, BLACK)
+    input_info_shadow = score_font.render("Wpisz swoj nick i nacisnij ENTER:", True, BLACK)
     input_info_rect_shadow = input_info_shadow.get_rect(center=(SCREEN_WIDTH / 2 + 2, SCREEN_HEIGHT / 2 + 62))
-    input_info_text = score_font.render("Wpisz swój nick i naciśnij ENTER:", True, GOLD)
+    input_info_text = score_font.render("Wpisz swoj nick i nacisnij ENTER:", True, GOLD)
     input_info_rect = input_info_text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 60))
 
     screen.blit(background, (0,0))
@@ -211,17 +211,17 @@ def show_main_menu(screen):
         background = pygame.Surface(screen.get_size())
         background.fill(SKY_BLUE)
 
-    font = load_font('content/ui/pixel_font.otf', 45)
+    font = load_font('content/ui/font2.ttf', 45)
     
     save_exists = load_game_state() is not None
     
     # Konfiguracja przycisków: (Tekst, Akcja, Czy aktywny)
     buttons = [
         {"text": "NOWA GRA", "action": "new_game", "active": True},
-        {"text": "WCZYTAJ GRĘ", "action": "load_game", "active": save_exists},
-        {"text": "TABELA WYNIKÓW", "action": "leaderboard", "active": True},
+        {"text": "WCZYTAJ GRE", "action": "load_game", "active": save_exists},
+        {"text": "TABELA WYNIKOW", "action": "leaderboard", "active": True},
         {"text": "USTAWIENIA", "action": "settings", "active": True},
-        {"text": "WYJDŹ", "action": "quit", "active": True}
+        {"text": "WYJDZ", "action": "quit", "active": True}
     ]
     
     button_rects = []
